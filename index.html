@@ -60,6 +60,16 @@ body {
   font-weight: 600;
 }
 
+/* ===== PESQUISA ===== */
+#searchInput {
+  width: 100%;
+  padding: 12px;
+  border-radius: 10px;
+  border: none;
+  font-size: 14px;
+  outline: none;
+}
+
 /* ===== LISTA ===== */
 .list {
   display: flex;
@@ -176,6 +186,21 @@ footer {
 
 <div id="banner"></div>
 
+<!-- PESQUISA -->
+<div class="section">
+  <input
+    type="text"
+    id="searchInput"
+    placeholder="Pesquisar filme..."
+    oninput="searchMovies()"
+  >
+</div>
+
+<div class="section">
+  <h2>Resultados</h2>
+  <div class="list" id="resultados"></div>
+</div>
+
 <div class="section">
   <h2>Populares</h2>
   <div class="list" id="populares"></div>
@@ -221,6 +246,7 @@ const SHEET_API = "https://sheetdb.io/api/v1/fj8limxarcrek";
 const TMDB_KEY  = "e849045922172492b3e79f58d1ec3efd";
 
 let currentLink = "";
+let allMovies = [];
 
 /* ===== TMDB ===== */
 async function getTMDB(nome) {
@@ -235,10 +261,13 @@ async function getTMDB(nome) {
 async function loadMovies() {
   const res = await fetch(SHEET_API);
   const movies = await res.json();
+  allMovies = movies;
 
   for (const m of movies) {
     const info = await getTMDB(m.nome);
     if (!info) continue;
+
+    m._tmdb = info;
 
     if (m.banner === "sim") {
       document.getElementById("banner").innerHTML = `
@@ -255,14 +284,38 @@ async function loadMovies() {
     card.onclick = () => openDetails(m, info);
 
     if (m.categorias.includes("populares")) {
-      document.getElementById("populares").appendChild(card.cloneNode(true));
-      document.getElementById("populares").lastChild.onclick = () => openDetails(m, info);
+      const c = card.cloneNode(true);
+      c.onclick = () => openDetails(m, info);
+      document.getElementById("populares").appendChild(c);
     }
 
     if (m.categorias.includes("dublados")) {
       document.getElementById("dublados").appendChild(card);
     }
   }
+}
+
+/* ===== PESQUISA ===== */
+function searchMovies() {
+  const q = document.getElementById("searchInput").value.toLowerCase();
+  const resultados = document.getElementById("resultados");
+  resultados.innerHTML = "";
+
+  if (!q) return;
+
+  allMovies
+    .filter(m => m.nome.toLowerCase().includes(q))
+    .forEach(m => {
+      const info = m._tmdb;
+      if (!info) return;
+
+      const card = document.createElement("div");
+      card.className = "card";
+      card.innerHTML = `<img src="https://image.tmdb.org/t/p/w500${info.poster_path}">`;
+      card.onclick = () => openDetails(m, info);
+
+      resultados.appendChild(card);
+    });
 }
 
 /* ===== DETALHES ===== */
@@ -292,16 +345,11 @@ function playMovie() {
   player.requestFullscreen?.();
 }
 
-/* ===== VOLTAR DO CELULAR ===== */
-window.addEventListener("popstate", () => {
-  closeDetails();
-});
+/* ===== VOLTAR ===== */
+window.addEventListener("popstate", closeDetails);
 
-/* ===== CLICK FORA ===== */
 document.getElementById("details").onclick = e => {
-  if (e.target.id === "details") {
-    history.back();
-  }
+  if (e.target.id === "details") history.back();
 };
 
 loadMovies();
